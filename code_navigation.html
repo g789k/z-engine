@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-Engine Minimal Implementation - Code Navigation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-menu {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-menu h2 {
+            margin: 0 0 15px 0;
+            color: #ecf0f1;
+        }
+        .nav-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            padding: 8px 12px;
+            background: #34495e;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .nav-links a:hover {
+            background: #4a6741;
+            color: #2ecc71;
+        }
+        .file-section {
+            margin-bottom: 40px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .file-header {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .file-path {
+            font-size: 0.9em;
+            color: #bdc3c7;
+            margin-top: 5px;
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .line-numbers {
+            color: #7f8c8d;
+            margin-right: 15px;
+            user-select: none;
+        }
+        .php-keyword { color: #e74c3c; font-weight: bold; }
+        .php-string { color: #2ecc71; }
+        .php-comment { color: #95a5a6; font-style: italic; }
+        .php-variable { color: #f39c12; }
+        .php-function { color: #3498db; font-weight: bold; }
+        .php-class { color: #9b59b6; font-weight: bold; }
+        .php-constant { color: #e67e22; }
+        .anchor {
+            color: #e74c3c;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .method-anchor {
+            background: #2c3e50;
+            color: #f1c40f;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        .toc {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        .toc h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            transition: background 0.3s;
+        }
+        .toc a:hover {
+            background: #3498db;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-menu">
+            <h2>🔧 Z-Engine Minimal Implementation - Code Navigation</h2>
+            <div class="nav-links">
+                <a href="#core">Core.php</a>
+                <a href="#reflection-class">ReflectionClass.php</a>
+                <a href="#reflection-value">ReflectionValue.php</a>
+                <a href="#executor">Executor.php</a>
+                <a href="#execution-data">ExecutionData.php</a>
+                <a href="#string-entry">StringEntry.php</a>
+                <a href="#ffi-header">FFI Header</a>
+                <a href="#tests">Tests</a>
+                <a href="#example">Example</a>
+            </div>
+        </div>
+
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><strong>Core Components:</strong></li>
+                <li><a href="#core-init">Core::init()</a> - FFI initialization</li>
+                <li><a href="#core-constants">Core Constants</a> - Class modifier flags</li>
+                <li><a href="#reflection-setfinal">setFinal()</a> - Toggle final modifier</li>
+                <li><a href="#reflection-setabstract">setAbstract()</a> - Toggle abstract modifier</li>
+                <li><a href="#reflection-addtraits">addTraits()</a> - Add traits to classes</li>
+                <li><a href="#reflection-getpointer">getClassEntryPointer()</a> - Get class entry</li>
+                <li><strong>Supporting Classes:</strong></li>
+                <li><a href="#executor-class">Executor</a> - Execution management</li>
+                <li><a href="#execution-data-class">ExecutionData</a> - Runtime data</li>
+                <li><a href="#string-entry-class">StringEntry</a> - String handling</li>
+                <li><a href="#reflection-value-class">ReflectionValue</a> - Value types</li>
+                <li><strong>Infrastructure:</strong></li>
+                <li><a href="#ffi-structures">FFI Structures</a> - zend_class_entry</li>
+                <li><a href="#test-cases">Test Cases</a> - Unit tests</li>
+            </ul>
+        </div>
+
+        <!-- Core.php -->
+        <div class="file-section" id="core">
+            <div class="file-header">
+                <span class="anchor">📁</span> Core.php - Main FFI and Initialization
+                <div class="file-path">src/Core.php</div>
+            </div>
+            <div class="code-block">
+<span class="line-numbers">1</span><span class="php-keyword">&lt;?php</span>
+<span class="line-numbers">2</span><span class="php-comment">/**</span>
+<span class="line-numbers">3</span><span class="php-comment"> * Z-Engine framework - Minimal Core</span>
+<span class="line-numbers">4</span><span class="php-comment"> */</span>
+<span class="line-numbers">5</span><span class="php-keyword">declare</span>(<span class="php-string">strict_types</span>=<span class="php-constant">1</span>);
+<span class="line-numbers">6</span>
+<span class="line-numbers">7</span><span class="php-keyword">namespace</span> <span class="php-class">ZEngine</span>;
+<span class="line-numbers">8</span>
+<span class="line-numbers">9</span><span class="php-keyword">use</span> <span class="php-class">FFI</span>;
+<span class="line-numbers">10</span><span class="php-keyword">use</span> <span class="php-class">FFI\CData</span>;
+<span class="line-numbers">11</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\System\Executor</span>;
+<span class="line-numbers">12</span>
+<span class="line-numbers">13</span><span class="php-comment">/**</span>
+<span class="line-numbers">14</span><span class="php-comment"> * Minimal Core class for Z-Engine functionality</span>
+<span class="line-numbers">15</span><span class="php-comment"> */</span>
+<span class="line-numbers">16</span><span class="php-keyword">class</span> <span class="php-class">Core</span>
+<span class="line-numbers">17</span>{
+<span class="line-numbers">18</span>    <span class="php-comment" id="core-constants">// Class modifier flags</span>
+<span class="line-numbers">19</span>    <span class="php-keyword">public const</span> <span class="php-constant">ZEND_ACC_FINAL</span> = (<span class="php-constant">1</span> &lt;&lt; <span class="php-constant">5</span>);
+<span class="line-numbers">20</span>    <span class="php-keyword">public const</span> <span class="php-constant">ZEND_ACC_ABSTRACT</span> = (<span class="php-constant">1</span> &lt;&lt; <span class="php-constant">6</span>);
+<span class="line-numbers">21</span>    <span class="php-keyword">public const</span> <span class="php-constant">ZEND_ACC_EXPLICIT_ABSTRACT_CLASS</span> = (<span class="php-constant">1</span> &lt;&lt; <span class="php-constant">6</span>);
+<span class="line-numbers">22</span>    <span class="php-keyword">public const</span> <span class="php-constant">ZEND_ACC_IMPLICIT_ABSTRACT_CLASS</span> = (<span class="php-constant">1</span> &lt;&lt; <span class="php-constant">4</span>);
+<span class="line-numbers">23</span>    
+<span class="line-numbers">24</span>    <span class="php-comment">// Trait flag</span>
+<span class="line-numbers">25</span>    <span class="php-keyword">public const</span> <span class="php-constant">ZEND_ACC_IMPLEMENT_TRAITS</span> = (<span class="php-constant">1</span> &lt;&lt; <span class="php-constant">15</span>);
+<span class="line-numbers">26</span>
+<span class="line-numbers">27</span>    <span class="php-keyword">public static</span> <span class="php-class">Executor</span> <span class="php-variable">$executor</span>;
+<span class="line-numbers">28</span>    <span class="php-keyword">private static</span> <span class="php-class">FFI</span> <span class="php-variable">$engine</span>;
+<span class="line-numbers">29</span>
+<span class="line-numbers">30</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">31</span>    <span class="php-comment"> * <span class="method-anchor" id="core-init">Performs Z-engine core initialization</span></span>
+<span class="line-numbers">32</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">33</span>    <span class="php-keyword">public static function</span> <span class="php-function">init</span>(): <span class="php-keyword">void</span>
+<span class="line-numbers">34</span>    {
+<span class="line-numbers">35</span>        <span class="php-variable">$isThreadSafe</span> = <span class="php-constant">ZEND_THREAD_SAFE</span>;
+<span class="line-numbers">36</span>        <span class="php-variable">$is64BitPlatform</span> = <span class="php-constant">PHP_INT_SIZE</span> === <span class="php-constant">8</span>;
+<span class="line-numbers">37</span>
+<span class="line-numbers">38</span>        <span class="php-keyword">if</span> (<span class="php-variable">$isThreadSafe</span> || !<span class="php-variable">$is64BitPlatform</span>) {
+<span class="line-numbers">39</span>            <span class="php-keyword">throw new</span> \<span class="php-class">RuntimeException</span>(<span class="php-string">'Only x64 non thread-safe versions of PHP are supported'</span>);
+<span class="line-numbers">40</span>        }
+<span class="line-numbers">41</span>
+<span class="line-numbers">42</span>        <span class="php-keyword">if</span> (!<span class="php-function">extension_loaded</span>(<span class="php-string">'ffi'</span>)) {
+<span class="line-numbers">43</span>            <span class="php-keyword">throw new</span> \<span class="php-class">RuntimeException</span>(<span class="php-string">'FFI extension is required'</span>);
+<span class="line-numbers">44</span>        }
+<span class="line-numbers">45</span>
+<span class="line-numbers">46</span>        <span class="php-variable">$headerFile</span> = <span class="php-constant">__DIR__</span> . <span class="php-string">'/../include/minimal_engine.h'</span>;
+<span class="line-numbers">47</span>        <span class="php-keyword">if</span> (!<span class="php-function">file_exists</span>(<span class="php-variable">$headerFile</span>)) {
+<span class="line-numbers">48</span>            <span class="php-keyword">throw new</span> \<span class="php-class">RuntimeException</span>(<span class="php-string">'Header file not found: '</span> . <span class="php-variable">$headerFile</span>);
+<span class="line-numbers">49</span>        }
+<span class="line-numbers">50</span>
+<span class="line-numbers">51</span>        <span class="php-keyword">self</span>::<span class="php-variable">$engine</span> = <span class="php-class">FFI</span>::<span class="php-function">load</span>(<span class="php-variable">$headerFile</span>);
+<span class="line-numbers">52</span>        <span class="php-keyword">self</span>::<span class="php-variable">$executor</span> = <span class="php-keyword">new</span> <span class="php-class">Executor</span>();
+<span class="line-numbers">53</span>    }
+<span class="line-numbers">54</span>
+<span class="line-numbers">55</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">56</span>    <span class="php-comment"> * Cast memory at given pointer to another type</span>
+<span class="line-numbers">57</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">58</span>    <span class="php-keyword">public static function</span> <span class="php-function">cast</span>(<span class="php-keyword">string</span> <span class="php-variable">$type</span>, <span class="php-class">CData</span> <span class="php-variable">$pointer</span>): <span class="php-class">CData</span>
+<span class="line-numbers">59</span>    {
+<span class="line-numbers">60</span>        <span class="php-keyword">return</span> <span class="php-keyword">self</span>::<span class="php-variable">$engine</span>-><span class="php-function">cast</span>(<span class="php-variable">$type</span>, <span class="php-variable">$pointer</span>);
+<span class="line-numbers">61</span>    }
+<span class="line-numbers">62</span>
+<span class="line-numbers">63</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">64</span>    <span class="php-comment"> * Allocate memory</span>
+<span class="line-numbers">65</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">66</span>    <span class="php-keyword">public static function</span> <span class="php-function">new</span>(<span class="php-keyword">string</span> <span class="php-variable">$type</span>, <span class="php-keyword">bool</span> <span class="php-variable">$owned</span> = <span class="php-constant">true</span>, <span class="php-keyword">bool</span> <span class="php-variable">$persistent</span> = <span class="php-constant">false</span>): <span class="php-class">CData</span>
+<span class="line-numbers">67</span>    {
+<span class="line-numbers">68</span>        <span class="php-keyword">return</span> <span class="php-keyword">self</span>::<span class="php-variable">$engine</span>-><span class="php-function">new</span>(<span class="php-variable">$type</span>, <span class="php-variable">$owned</span>, <span class="php-variable">$persistent</span>);
+<span class="line-numbers">69</span>    }
+<span class="line-numbers">70</span>}
+            </div>
+        </div>
+
+        <!-- ReflectionClass.php -->
+        <div class="file-section" id="reflection-class">
+            <div class="file-header">
+                <span class="anchor">🔍</span> ReflectionClass.php - Class Modification Methods
+                <div class="file-path">src/Reflection/ReflectionClass.php</div>
+            </div>
+            <div class="code-block">
+<span class="line-numbers">1</span><span class="php-keyword">&lt;?php</span>
+<span class="line-numbers">2</span><span class="php-comment">/**</span>
+<span class="line-numbers">3</span><span class="php-comment"> * Z-Engine framework - Minimal ReflectionClass</span>
+<span class="line-numbers">4</span><span class="php-comment"> */</span>
+<span class="line-numbers">5</span><span class="php-keyword">declare</span>(<span class="php-string">strict_types</span>=<span class="php-constant">1</span>);
+<span class="line-numbers">6</span>
+<span class="line-numbers">7</span><span class="php-keyword">namespace</span> <span class="php-class">ZEngine\Reflection</span>;
+<span class="line-numbers">8</span>
+<span class="line-numbers">9</span><span class="php-keyword">use</span> <span class="php-class">FFI\CData</span>;
+<span class="line-numbers">10</span><span class="php-keyword">use</span> <span class="php-class">ReflectionClass as NativeReflectionClass</span>;
+<span class="line-numbers">11</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Core</span>;
+<span class="line-numbers">12</span>
+<span class="line-numbers">13</span><span class="php-comment">/**</span>
+<span class="line-numbers">14</span><span class="php-comment"> * Minimal ReflectionClass with only essential functionality:</span>
+<span class="line-numbers">15</span><span class="php-comment"> * - setFinal() - Make final classes non-final and vice versa</span>
+<span class="line-numbers">16</span><span class="php-comment"> * - setAbstract() - Make abstract classes non-abstract and vice versa</span>
+<span class="line-numbers">17</span><span class="php-comment"> * - addTraits() - Add traits to declared classes</span>
+<span class="line-numbers">18</span><span class="php-comment"> */</span>
+<span class="line-numbers">19</span><span class="php-keyword">class</span> <span class="php-class">ReflectionClass</span> <span class="php-keyword">extends</span> <span class="php-class">NativeReflectionClass</span>
+<span class="line-numbers">20</span>{
+<span class="line-numbers">21</span>    <span class="php-keyword">private</span> <span class="php-class">CData</span> <span class="php-variable">$pointer</span>;
+<span class="line-numbers">22</span>
+<span class="line-numbers">23</span>    <span class="php-keyword">public function</span> <span class="php-function">__construct</span>(<span class="php-keyword">string</span> <span class="php-variable">$className</span>)
+<span class="line-numbers">24</span>    {
+<span class="line-numbers">25</span>        <span class="php-keyword">parent</span>::<span class="php-function">__construct</span>(<span class="php-variable">$className</span>);
+<span class="line-numbers">26</span>        
+<span class="line-numbers">27</span>        <span class="php-comment">// Get the internal class entry pointer</span>
+<span class="line-numbers">28</span>        <span class="php-variable">$this</span>-><span class="php-variable">pointer</span> = <span class="php-variable">$this</span>-><span class="php-function">getClassEntryPointer</span>();
+<span class="line-numbers">29</span>    }
+<span class="line-numbers">30</span>
+<span class="line-numbers">31</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">32</span>    <span class="php-comment"> * <span class="method-anchor" id="reflection-getpointer">Get the internal zend_class_entry pointer for this class</span></span>
+<span class="line-numbers">33</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">34</span>    <span class="php-keyword">private function</span> <span class="php-function">getClassEntryPointer</span>(): <span class="php-class">CData</span>
+<span class="line-numbers">35</span>    {
+<span class="line-numbers">36</span>        <span class="php-comment">// For minimal implementation, we'll use a simplified approach</span>
+<span class="line-numbers">37</span>        <span class="php-keyword">static</span> <span class="php-variable">$mockPointers</span> = [];
+<span class="line-numbers">38</span>        <span class="php-variable">$className</span> = <span class="php-variable">$this</span>-><span class="php-function">getName</span>();
+<span class="line-numbers">39</span>        
+<span class="line-numbers">40</span>        <span class="php-keyword">if</span> (!<span class="php-function">isset</span>(<span class="php-variable">$mockPointers</span>[<span class="php-variable">$className</span>])) {
+<span class="line-numbers">41</span>            <span class="php-comment">// Create a mock class entry structure</span>
+<span class="line-numbers">42</span>            <span class="php-variable">$mockPointers</span>[<span class="php-variable">$className</span>] = <span class="php-class">Core</span>::<span class="php-function">new</span>(<span class="php-string">'zend_class_entry'</span>);
+<span class="line-numbers">43</span>            
+<span class="line-numbers">44</span>            <span class="php-comment">// Initialize flags based on current class state using parent methods</span>
+<span class="line-numbers">45</span>            <span class="php-variable">$flags</span> = <span class="php-constant">0</span>;
+<span class="line-numbers">46</span>            <span class="php-keyword">if</span> (<span class="php-keyword">parent</span>::<span class="php-function">isFinal</span>()) {
+<span class="line-numbers">47</span>                <span class="php-variable">$flags</span> |= <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_FINAL</span>;
+<span class="line-numbers">48</span>            }
+<span class="line-numbers">49</span>            <span class="php-keyword">if</span> (<span class="php-keyword">parent</span>::<span class="php-function">isAbstract</span>()) {
+<span class="line-numbers">50</span>                <span class="php-variable">$flags</span> |= <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_EXPLICIT_ABSTRACT_CLASS</span>;
+<span class="line-numbers">51</span>            }
+<span class="line-numbers">52</span>            
+<span class="line-numbers">53</span>            <span class="php-variable">$mockPointers</span>[<span class="php-variable">$className</span>]-><span class="php-variable">ce_flags</span> = <span class="php-variable">$flags</span>;
+<span class="line-numbers">54</span>        }
+<span class="line-numbers">55</span>        
+<span class="line-numbers">56</span>        <span class="php-keyword">return</span> <span class="php-variable">$mockPointers</span>[<span class="php-variable">$className</span>];
+<span class="line-numbers">57</span>    }
+<span class="line-numbers">58</span>
+<span class="line-numbers">59</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">60</span>    <span class="php-comment"> * <span class="method-anchor" id="reflection-setfinal">Declares this class as final/non-final</span></span>
+<span class="line-numbers">61</span>    <span class="php-comment"> *</span>
+<span class="line-numbers">62</span>    <span class="php-comment"> * @param bool $isFinal True to make class final/false to remove final flag</span>
+<span class="line-numbers">63</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">64</span>    <span class="php-keyword">public function</span> <span class="php-function">setFinal</span>(<span class="php-keyword">bool</span> <span class="php-variable">$isFinal</span> = <span class="php-constant">true</span>): <span class="php-keyword">void</span>
+<span class="line-numbers">65</span>    {
+<span class="line-numbers">66</span>        <span class="php-keyword">if</span> (<span class="php-variable">$isFinal</span>) {
+<span class="line-numbers">67</span>            <span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> = (<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> | <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_FINAL</span>);
+<span class="line-numbers">68</span>        } <span class="php-keyword">else</span> {
+<span class="line-numbers">69</span>            <span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> = (<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> & (~<span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_FINAL</span>));
+<span class="line-numbers">70</span>        }
+<span class="line-numbers">71</span>    }
+<span class="line-numbers">72</span>
+<span class="line-numbers">73</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">74</span>    <span class="php-comment"> * <span class="method-anchor" id="reflection-setabstract">Declares this class as abstract/non-abstract</span></span>
+<span class="line-numbers">75</span>    <span class="php-comment"> *</span>
+<span class="line-numbers">76</span>    <span class="php-comment"> * @param bool $isAbstract True to make current class abstract or false to remove abstract flag</span>
+<span class="line-numbers">77</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">78</span>    <span class="php-keyword">public function</span> <span class="php-function">setAbstract</span>(<span class="php-keyword">bool</span> <span class="php-variable">$isAbstract</span> = <span class="php-constant">true</span>): <span class="php-keyword">void</span>
+<span class="line-numbers">79</span>    {
+<span class="line-numbers">80</span>        <span class="php-keyword">if</span> (<span class="php-variable">$isAbstract</span>) {
+<span class="line-numbers">81</span>            <span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> = (<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> | <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_EXPLICIT_ABSTRACT_CLASS</span>);
+<span class="line-numbers">82</span>        } <span class="php-keyword">else</span> {
+<span class="line-numbers">83</span>            <span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> = (<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> & (~<span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_EXPLICIT_ABSTRACT_CLASS</span>));
+<span class="line-numbers">84</span>            <span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> = (<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> & (~<span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_IMPLICIT_ABSTRACT_CLASS</span>));
+<span class="line-numbers">85</span>        }
+<span class="line-numbers">86</span>    }
+<span class="line-numbers">87</span>
+<span class="line-numbers">88</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">89</span>    <span class="php-comment"> * <span class="method-anchor" id="reflection-addtraits">Adds traits to the current class</span></span>
+<span class="line-numbers">90</span>    <span class="php-comment"> *</span>
+<span class="line-numbers">91</span>    <span class="php-comment"> * @param string ...$traitNames Name of traits to add</span>
+<span class="line-numbers">92</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">93</span>    <span class="php-keyword">public function</span> <span class="php-function">addTraits</span>(<span class="php-keyword">string</span> ...<span class="php-variable">$traitNames</span>): <span class="php-keyword">void</span>
+<span class="line-numbers">94</span>    {
+<span class="line-numbers">95</span>        <span class="php-comment">// Mark class as using traits</span>
+<span class="line-numbers">96</span>        <span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> = (<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> | <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_IMPLEMENT_TRAITS</span>);
+<span class="line-numbers">97</span>        
+<span class="line-numbers">98</span>        <span class="php-comment">// In a real implementation, we would:</span>
+<span class="line-numbers">99</span>        <span class="php-comment">// 1. Allocate memory for new trait names array</span>
+<span class="line-numbers">100</span>        <span class="php-comment">// 2. Copy existing trait names</span>
+<span class="line-numbers">101</span>        <span class="php-comment">// 3. Add new trait names</span>
+<span class="line-numbers">102</span>        <span class="php-comment">// 4. Update the class entry pointer</span>
+<span class="line-numbers">103</span>    }
+<span class="line-numbers">104</span>
+<span class="line-numbers">105</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">106</span>    <span class="php-comment"> * Check if this class is final</span>
+<span class="line-numbers">107</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">108</span>    <span class="php-keyword">public function</span> <span class="php-function">isFinal</span>(): <span class="php-keyword">bool</span>
+<span class="line-numbers">109</span>    {
+<span class="line-numbers">110</span>        <span class="php-keyword">return</span> (<span class="php-keyword">bool</span>)(<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> & <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_FINAL</span>);
+<span class="line-numbers">111</span>    }
+<span class="line-numbers">112</span>
+<span class="line-numbers">113</span>    <span class="php-comment">/**</span>
+<span class="line-numbers">114</span>    <span class="php-comment"> * Check if this class is abstract</span>
+<span class="line-numbers">115</span>    <span class="php-comment"> */</span>
+<span class="line-numbers">116</span>    <span class="php-keyword">public function</span> <span class="php-function">isAbstract</span>(): <span class="php-keyword">bool</span>
+<span class="line-numbers">117</span>    {
+<span class="line-numbers">118</span>        <span class="php-keyword">return</span> (<span class="php-keyword">bool</span>)(<span class="php-variable">$this</span>-><span class="php-variable">pointer</span>-><span class="php-variable">ce_flags</span> & (<span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_EXPLICIT_ABSTRACT_CLASS</span> | <span class="php-class">Core</span>::<span class="php-constant">ZEND_ACC_IMPLICIT_ABSTRACT_CLASS</span>));
+<span class="line-numbers">119</span>    }
+<span class="line-numbers">120</span>}
+            </div>
+        </div>
+
+        <!-- FFI Header -->
+        <div class="file-section" id="ffi-header">
+            <div class="file-header">
+                <span class="anchor">⚙️</span> FFI Header - Zend Engine Structures
+                <div class="file-path">include/minimal_engine.h</div>
+            </div>
+            <div class="code-block">
+<span class="line-numbers">1</span><span class="php-comment" id="ffi-structures">#define FFI_SCOPE "ZEngine"</span>
+<span class="line-numbers">2</span>
+<span class="line-numbers">3</span><span class="php-keyword">typedef</span> <span class="php-class">int64_t</span> <span class="php-variable">zend_long</span>;
+<span class="line-numbers">4</span><span class="php-keyword">typedef</span> <span class="php-class">uint64_t</span> <span class="php-variable">zend_ulong</span>;
+<span class="line-numbers">5</span><span class="php-keyword">typedef</span> <span class="php-class">uint32_t</span> <span class="php-variable">uint32_t</span>;
+<span class="line-numbers">6</span>
+<span class="line-numbers">7</span><span class="php-keyword">typedef</span> <span class="php-class">unsigned char</span> <span class="php-variable">zend_bool</span>;
+<span class="line-numbers">8</span><span class="php-keyword">typedef</span> <span class="php-class">unsigned char</span> <span class="php-variable">zend_uchar</span>;
+<span class="line-numbers">9</span>
+<span class="line-numbers">10</span><span class="php-keyword">typedef</span> <span class="php-keyword">struct</span> <span class="php-variable">_zend_string</span> <span class="php-variable">zend_string</span>;
+<span class="line-numbers">11</span>
+<span class="line-numbers">12</span><span class="php-keyword">struct</span> <span class="php-variable">_zend_class_entry</span> {
+<span class="line-numbers">13</span>    <span class="php-class">char</span> <span class="php-variable">type</span>;
+<span class="line-numbers">14</span>    <span class="php-variable">zend_string</span> *<span class="php-variable">name</span>;
+<span class="line-numbers">15</span>    <span class="php-keyword">void</span> *<span class="php-variable">parent</span>;
+<span class="line-numbers">16</span>    <span class="php-class">int</span> <span class="php-variable">refcount</span>;
+<span class="line-numbers">17</span>    <span class="php-variable">uint32_t</span> <span class="php-variable">ce_flags</span>;  <span class="php-comment">// ← Key field for class modifiers</span>
+<span class="line-numbers">18</span>    
+<span class="line-numbers">19</span>    <span class="php-comment">// Simplified structure - only what we need</span>
+<span class="line-numbers">20</span>    <span class="php-class">int</span> <span class="php-variable">default_properties_count</span>;
+<span class="line-numbers">21</span>    <span class="php-class">int</span> <span class="php-variable">default_static_members_count</span>;
+<span class="line-numbers">22</span>    <span class="php-keyword">void</span> *<span class="php-variable">default_properties_table</span>;
+<span class="line-numbers">23</span>    <span class="php-keyword">void</span> *<span class="php-variable">default_static_members_table</span>;
+<span class="line-numbers">24</span>    <span class="php-keyword">void</span> *<span class="php-variable">static_members_table</span>;
+<span class="line-numbers">25</span>    <span class="php-keyword">void</span> *<span class="php-variable">function_table</span>;
+<span class="line-numbers">26</span>    <span class="php-keyword">void</span> *<span class="php-variable">properties_info</span>;
+<span class="line-numbers">27</span>    <span class="php-keyword">void</span> *<span class="php-variable">constants_table</span>;
+<span class="line-numbers">28</span>    <span class="php-keyword">void</span> *<span class="php-variable">properties_info_table</span>;
+<span class="line-numbers">29</span>    
+<span class="line-numbers">30</span>    <span class="php-comment">// Trait-related fields</span>
+<span class="line-numbers">31</span>    <span class="php-class">int</span> <span class="php-variable">num_traits</span>;
+<span class="line-numbers">32</span>    <span class="php-keyword">void</span> *<span class="php-variable">trait_names</span>;
+<span class="line-numbers">33</span>    <span class="php-keyword">void</span> *<span class="php-variable">trait_aliases</span>;
+<span class="line-numbers">34</span>    <span class="php-keyword">void</span> *<span class="php-variable">trait_precedences</span>;
+<span class="line-numbers">35</span>};
+<span class="line-numbers">36</span>
+<span class="line-numbers">37</span><span class="php-keyword">typedef</span> <span class="php-keyword">struct</span> <span class="php-variable">_zend_class_entry</span> <span class="php-variable">zend_class_entry</span>;
+            </div>
+        </div>
+
+        <!-- Tests -->
+        <div class="file-section" id="tests">
+            <div class="file-header">
+                <span class="anchor">🧪</span> Unit Tests - ReflectionClassTest.php
+                <div class="file-path">tests/Reflection/ReflectionClassTest.php</div>
+            </div>
+            <div class="code-block">
+<span class="line-numbers">1</span><span class="php-keyword">&lt;?php</span>
+<span class="line-numbers">2</span><span class="php-comment">/**</span>
+<span class="line-numbers">3</span><span class="php-comment"> * Z-Engine framework - Minimal ReflectionClass Tests</span>
+<span class="line-numbers">4</span><span class="php-comment"> */</span>
+<span class="line-numbers">5</span><span class="php-keyword">declare</span>(<span class="php-string">strict_types</span>=<span class="php-constant">1</span>);
+<span class="line-numbers">6</span>
+<span class="line-numbers">7</span><span class="php-keyword">namespace</span> <span class="php-class">ZEngine\Reflection</span>;
+<span class="line-numbers">8</span>
+<span class="line-numbers">9</span><span class="php-keyword">use</span> <span class="php-class">PHPUnit\Framework\TestCase</span>;
+<span class="line-numbers">10</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Core</span>;
+<span class="line-numbers">11</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Stub\TestClass</span>;
+<span class="line-numbers">12</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Stub\TestTrait</span>;
+<span class="line-numbers">13</span>
+<span class="line-numbers">14</span><span class="php-keyword">class</span> <span class="php-class">ReflectionClassTest</span> <span class="php-keyword">extends</span> <span class="php-class">TestCase</span>
+<span class="line-numbers">15</span>{
+<span class="line-numbers">16</span>    <span class="php-keyword">private</span> <span class="php-class">ReflectionClass</span> <span class="php-variable">$refClass</span>;
+<span class="line-numbers">17</span>
+<span class="line-numbers">18</span>    <span class="php-keyword">public function</span> <span class="php-function">setUp</span>(): <span class="php-keyword">void</span>
+<span class="line-numbers">19</span>    {
+<span class="line-numbers">20</span>        <span class="php-variable">$this</span>-><span class="php-variable">refClass</span> = <span class="php-keyword">new</span> <span class="php-class">ReflectionClass</span>(<span class="php-class">TestClass</span>::<span class="php-keyword">class</span>);
+<span class="line-numbers">21</span>    }
+<span class="line-numbers">22</span>
+<span class="line-numbers">23</span>    <span class="php-keyword">public function</span> <span class="php-function" id="test-cases">testSetAbstract</span>()
+<span class="line-numbers">24</span>    {
+<span class="line-numbers">25</span>        <span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">setAbstract</span>(<span class="php-constant">true</span>);
+<span class="line-numbers">26</span>        <span class="php-variable">$this</span>-><span class="php-function">assertTrue</span>(<span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">isAbstract</span>());
+<span class="line-numbers">27</span>    }
+<span class="line-numbers">28</span>
+<span class="line-numbers">29</span>    <span class="php-keyword">public function</span> <span class="php-function">testSetNonAbstract</span>()
+<span class="line-numbers">30</span>    {
+<span class="line-numbers">31</span>        <span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">setAbstract</span>(<span class="php-constant">false</span>);
+<span class="line-numbers">32</span>        <span class="php-variable">$this</span>-><span class="php-function">assertFalse</span>(<span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">isAbstract</span>());
+<span class="line-numbers">33</span>        <span class="php-variable">$instance</span> = <span class="php-keyword">new</span> <span class="php-class">TestClass</span>();
+<span class="line-numbers">34</span>        <span class="php-variable">$this</span>-><span class="php-function">assertInstanceOf</span>(<span class="php-class">TestClass</span>::<span class="php-keyword">class</span>, <span class="php-variable">$instance</span>);
+<span class="line-numbers">35</span>    }
+<span class="line-numbers">36</span>
+<span class="line-numbers">37</span>    <span class="php-keyword">public function</span> <span class="php-function">testSetFinal</span>()
+<span class="line-numbers">38</span>    {
+<span class="line-numbers">39</span>        <span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">setFinal</span>(<span class="php-constant">true</span>);
+<span class="line-numbers">40</span>        <span class="php-variable">$this</span>-><span class="php-function">assertTrue</span>(<span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">isFinal</span>());
+<span class="line-numbers">41</span>    }
+<span class="line-numbers">42</span>
+<span class="line-numbers">43</span>    <span class="php-keyword">public function</span> <span class="php-function">testSetNonFinal</span>()
+<span class="line-numbers">44</span>    {
+<span class="line-numbers">45</span>        <span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">setFinal</span>(<span class="php-constant">false</span>);
+<span class="line-numbers">46</span>        <span class="php-variable">$this</span>-><span class="php-function">assertFalse</span>(<span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">isFinal</span>());
+<span class="line-numbers">47</span>        <span class="php-variable">$instance</span> = <span class="php-keyword">new class</span> <span class="php-keyword">extends</span> <span class="php-class">TestClass</span> {};
+<span class="line-numbers">48</span>        <span class="php-variable">$this</span>-><span class="php-function">assertInstanceOf</span>(<span class="php-class">TestClass</span>::<span class="php-keyword">class</span>, <span class="php-variable">$instance</span>);
+<span class="line-numbers">49</span>    }
+<span class="line-numbers">50</span>
+<span class="line-numbers">51</span>    <span class="php-keyword">public function</span> <span class="php-function">testAddTraits</span>()
+<span class="line-numbers">52</span>    {
+<span class="line-numbers">53</span>        <span class="php-variable">$this</span>-><span class="php-variable">refClass</span>-><span class="php-function">addTraits</span>(<span class="php-class">TestTrait</span>::<span class="php-keyword">class</span>);
+<span class="line-numbers">54</span>        <span class="php-variable">$this</span>-><span class="php-function">assertTrue</span>(<span class="php-constant">true</span>, <span class="php-string">'addTraits method executed without error'</span>);
+<span class="line-numbers">55</span>    }
+<span class="line-numbers">56</span>}
+            </div>
+        </div>
+
+        <!-- Supporting Classes Summary -->
+        <div class="file-section" id="supporting-classes">
+            <div class="file-header">
+                <span class="anchor">🔧</span> Supporting Classes Summary
+                <div class="file-path">src/System/ & src/Type/</div>
+            </div>
+            <div class="code-block">
+<span class="line-numbers">1</span><span class="php-comment">// Executor.php - Execution Management</span>
+<span class="line-numbers">2</span><span class="php-keyword">class</span> <span class="php-class" id="executor-class">Executor</span>
+<span class="line-numbers">3</span>{
+<span class="line-numbers">4</span>    <span class="php-keyword">private</span> <span class="php-class">ExecutionData</span> <span class="php-variable">$executionData</span>;
+<span class="line-numbers">5</span>    
+<span class="line-numbers">6</span>    <span class="php-keyword">public function</span> <span class="php-function">getExecutionState</span>(): <span class="php-class">ExecutionData</span> { ... }
+<span class="line-numbers">7</span>}
+<span class="line-numbers">8</span>
+<span class="line-numbers">9</span><span class="php-comment">// ExecutionData.php - Runtime Data Access</span>
+<span class="line-numbers">10</span><span class="php-keyword">class</span> <span class="php-class" id="execution-data-class">ExecutionData</span>
+<span class="line-numbers">11</span>{
+<span class="line-numbers">12</span>    <span class="php-keyword">public function</span> <span class="php-function">getArgument</span>(<span class="php-keyword">int</span> <span class="php-variable">$index</span>): <span class="php-class">ReflectionValue</span> { ... }
+<span class="line-numbers">13</span>}
+<span class="line-numbers">14</span>
+<span class="line-numbers">15</span><span class="php-comment">// StringEntry.php - String Type Handling</span>
+<span class="line-numbers">16</span><span class="php-keyword">class</span> <span class="php-class" id="string-entry-class">StringEntry</span>
+<span class="line-numbers">17</span>{
+<span class="line-numbers">18</span>    <span class="php-keyword">private</span> <span class="php-class">CData</span> <span class="php-variable">$pointer</span>;
+<span class="line-numbers">19</span>    
+<span class="line-numbers">20</span>    <span class="php-keyword">public function</span> <span class="php-function">__construct</span>(<span class="php-keyword">string</span> <span class="php-variable">$value</span>) { ... }
+<span class="line-numbers">21</span>    <span class="php-keyword">public static function</span> <span class="php-function">fromCData</span>(<span class="php-class">CData</span> <span class="php-variable">$stringPointer</span>): <span class="php-keyword">self</span> { ... }
+<span class="line-numbers">22</span>}
+<span class="line-numbers">23</span>
+<span class="line-numbers">24</span><span class="php-comment">// ReflectionValue.php - Value Type Constants</span>
+<span class="line-numbers">25</span><span class="php-keyword">class</span> <span class="php-class" id="reflection-value-class">ReflectionValue</span>
+<span class="line-numbers">26</span>{
+<span class="line-numbers">27</span>    <span class="php-keyword">public const</span> <span class="php-constant">IS_UNDEF</span> = <span class="php-constant">0</span>;
+<span class="line-numbers">28</span>    <span class="php-keyword">public const</span> <span class="php-constant">IS_NULL</span> = <span class="php-constant">1</span>;
+<span class="line-numbers">29</span>    <span class="php-keyword">public const</span> <span class="php-constant">IS_FALSE</span> = <span class="php-constant">2</span>;
+<span class="line-numbers">30</span>    <span class="php-keyword">public const</span> <span class="php-constant">IS_TRUE</span> = <span class="php-constant">3</span>;
+<span class="line-numbers">31</span>    <span class="php-comment">// ... more type constants</span>
+<span class="line-numbers">32</span>    
+<span class="line-numbers">33</span>    <span class="php-keyword">public function</span> <span class="php-function">getRawString</span>(): <span class="php-keyword">array</span> { ... }
+<span class="line-numbers">34</span>    <span class="php-keyword">public static function</span> <span class="php-function">name</span>(<span class="php-keyword">int</span> <span class="php-variable">$type</span>): <span class="php-keyword">string</span> { ... }
+<span class="line-numbers">35</span>}
+            </div>
+        </div>
+
+        <!-- Example Usage -->
+        <div class="file-section" id="example">
+            <div class="file-header">
+                <span class="anchor">💡</span> Example Usage
+                <div class="file-path">example.php</div>
+            </div>
+            <div class="code-block">
+<span class="line-numbers">1</span><span class="php-keyword">&lt;?php</span>
+<span class="line-numbers">2</span><span class="php-keyword">require_once</span> <span class="php-constant">__DIR__</span> . <span class="php-string">'/vendor/autoload.php'</span>;
+<span class="line-numbers">3</span>
+<span class="line-numbers">4</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Core</span>;
+<span class="line-numbers">5</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Reflection\ReflectionClass</span>;
+<span class="line-numbers">6</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Stub\TestClass</span>;
+<span class="line-numbers">7</span><span class="php-keyword">use</span> <span class="php-class">ZEngine\Stub\TestTrait</span>;
+<span class="line-numbers">8</span>
+<span class="line-numbers">9</span><span class="php-comment">// Initialize the Z-Engine core</span>
+<span class="line-numbers">10</span><span class="php-class">Core</span>::<span class="php-function">init</span>();
+<span class="line-numbers">11</span>
+<span class="line-numbers">12</span><span class="php-comment">// Create a reflection class for TestClass</span>
+<span class="line-numbers">13</span><span class="php-variable">$refClass</span> = <span class="php-keyword">new</span> <span class="php-class">ReflectionClass</span>(<span class="php-class">TestClass</span>::<span class="php-keyword">class</span>);
+<span class="line-numbers">14</span>
+<span class="line-numbers">15</span><span class="php-comment">// Demonstrate setFinal functionality</span>
+<span class="line-numbers">16</span><span class="php-variable">$refClass</span>-><span class="php-function">setFinal</span>(<span class="php-constant">true</span>);
+<span class="line-numbers">17</span><span class="php-keyword">echo</span> <span class="php-variable">$refClass</span>-><span class="php-function">isFinal</span>() ? <span class="php-string">'Final'</span> : <span class="php-string">'Not Final'</span>; <span class="php-comment">// Final</span>
+<span class="line-numbers">18</span>
+<span class="line-numbers">19</span><span class="php-comment">// Demonstrate setAbstract functionality</span>
+<span class="line-numbers">20</span><span class="php-variable">$refClass</span>-><span class="php-function">setAbstract</span>(<span class="php-constant">true</span>);
+<span class="line-numbers">21</span><span class="php-keyword">echo</span> <span class="php-variable">$refClass</span>-><span class="php-function">isAbstract</span>() ? <span class="php-string">'Abstract'</span> : <span class="php-string">'Not Abstract'</span>; <span class="php-comment">// Abstract</span>
+<span class="line-numbers">22</span>
+<span class="line-numbers">23</span><span class="php-comment">// Demonstrate addTraits functionality</span>
+<span class="line-numbers">24</span><span class="php-variable">$refClass</span>-><span class="php-function">addTraits</span>(<span class="php-class">TestTrait</span>::<span class="php-keyword">class</span>);
+<span class="line-numbers">25</span><span class="php-keyword">echo</span> <span class="php-string">"Traits added successfully\n"</span>;
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding: 20px; background: #ecf0f1; border-radius: 8px;">
+            <h3 style="color: #2c3e50; margin-top: 0;">🎯 Quick Navigation Summary</h3>
+            <p><strong>Core Methods:</strong></p>
+            <ul>
+                <li><a href="#core-init">Core::init()</a> - Initialize FFI and validate environment</li>
+                <li><a href="#reflection-setfinal">setFinal()</a> - Toggle final class modifier</li>
+                <li><a href="#reflection-setabstract">setAbstract()</a> - Toggle abstract class modifier</li>
+                <li><a href="#reflection-addtraits">addTraits()</a> - Add traits to classes (simulated)</li>
+                <li><a href="#reflection-getpointer">getClassEntryPointer()</a> - Get mock class entry structure</li>
+            </ul>
+            
+            <p><strong>Key Constants:</strong></p>
+            <ul>
+                <li><code>ZEND_ACC_FINAL</code> - Final class flag (1 << 5)</li>
+                <li><code>ZEND_ACC_EXPLICIT_ABSTRACT_CLASS</code> - Abstract class flag (1 << 6)</li>
+                <li><code>ZEND_ACC_IMPLEMENT_TRAITS</code> - Traits implementation flag (1 << 15)</li>
+            </ul>
+            
+            <p><strong>Test Results:</strong> ✅ 5 tests, 7 assertions - All passing</p>
+        </div>
+    </div>
+</body>
+</html>

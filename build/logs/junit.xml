@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="ZEngine\Reflection\ReflectionClassTest" file="/workspace/z-engine/tests/Reflection/ReflectionClassTest.php" tests="5" assertions="7" errors="0" warnings="0" failures="0" skipped="0" time="0.001608">
+    <testcase name="testSetAbstract" class="ZEngine\Reflection\ReflectionClassTest" classname="ZEngine.Reflection.ReflectionClassTest" file="/workspace/z-engine/tests/Reflection/ReflectionClassTest.php" line="25" assertions="1" time="0.001391"/>
+    <testcase name="testSetNonAbstract" class="ZEngine\Reflection\ReflectionClassTest" classname="ZEngine.Reflection.ReflectionClassTest" file="/workspace/z-engine/tests/Reflection/ReflectionClassTest.php" line="45" assertions="2" time="0.000152"/>
+    <testcase name="testSetFinal" class="ZEngine\Reflection\ReflectionClassTest" classname="ZEngine.Reflection.ReflectionClassTest" file="/workspace/z-engine/tests/Reflection/ReflectionClassTest.php" line="53" assertions="1" time="0.000021"/>
+    <testcase name="testSetNonFinal" class="ZEngine\Reflection\ReflectionClassTest" classname="ZEngine.Reflection.ReflectionClassTest" file="/workspace/z-engine/tests/Reflection/ReflectionClassTest.php" line="71" assertions="2" time="0.000025"/>
+    <testcase name="testAddTraits" class="ZEngine\Reflection\ReflectionClassTest" classname="ZEngine.Reflection.ReflectionClassTest" file="/workspace/z-engine/tests/Reflection/ReflectionClassTest.php" line="85" assertions="1" time="0.000018"/>
+  </testsuite>
+</testsuites>
